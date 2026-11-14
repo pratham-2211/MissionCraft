@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   Stars,
@@ -490,7 +490,10 @@ function NasaMarsDataPanel() {
                   })
                 : "Date unavailable",
               center: metadata.center || "NASA",
-              photographer: metadata.photographer || "",
+              photographer: metadata.photographer || "Not credited",
+              location: metadata.location || "Location unavailable",
+              keywords: metadata.keywords || [],
+              mediaType: metadata.media_type || "image",
               image: preview || "",
               description: metadata.description || "",
             };
@@ -567,7 +570,7 @@ function NasaMarsDataPanel() {
 
       {loading && (
         <div style={{ padding: "18px 4px", color: "#a9bfd5", fontSize: 11 }}>
-          Connecting to NASA archive…
+          Connecting to NASA archiveâ€¦
         </div>
       )}
 
@@ -626,8 +629,25 @@ function NasaMarsDataPanel() {
                   {item.date}
                 </span>
                 <span style={{ display: "block", marginTop: 3, color: "#829bb5", fontSize: 8 }}>
-                  {item.center}{item.photographer ? ` · ${item.photographer}` : ""}
+                  {item.center}
                 </span>
+                <span style={{ display: "block", marginTop: 3, color: "#91a8c1", fontSize: 8 }}>
+                  Location: {item.location}
+                </span>
+                <span style={{ display: "block", marginTop: 3, color: "#91a8c1", fontSize: 8 }}>
+                  Photographer: {item.photographer}
+                </span>
+                {item.keywords.length > 0 && (
+                  <span style={{
+                    display: "block",
+                    marginTop: 4,
+                    color: "#e0a17e",
+                    fontSize: 8,
+                    lineHeight: 1.5
+                  }}>
+                    Tags: {item.keywords.slice(0, 4).join(" · ")}
+                  </span>
+                )}
               </span>
             </a>
           ))}
@@ -635,7 +655,7 @@ function NasaMarsDataPanel() {
       )}
 
       <div style={{ marginTop: 9, color: "#7189a3", fontSize: 8, lineHeight: 1.5 }}>
-        Source: NASA Image and Video Library · Select an image to view its NASA record
+        Source: NASA Image and Video Library Â· Select an image to view its NASA record
       </div>
     </section>
   );
@@ -714,9 +734,9 @@ const hudPanel = {
 };
 
 const MISSION_CONFIG = {
-  earth: { title: "EARTH ORBIT", subtitle: "LOW EARTH ORBIT · EARTH OBSERVATION", id: "MC-LEO-001", status: "EARTH OBSERVATION PROFILE" },
-  lunar: { title: "LUNAR EXPLORATION", subtitle: "LUNAR ORBIT · DEEP SPACE OPERATIONS", id: "MC-LUNAR-002", status: "LUNAR ORBIT PROFILE" },
-  mars: { title: "MARS RECONNAISSANCE", subtitle: "MARS ORBIT · PLANETARY SCIENCE", id: "MC-MARS-003", status: "MARS ORBITER PROFILE" },
+  earth: { title: "EARTH ORBIT", subtitle: "LOW EARTH ORBIT Â· EARTH OBSERVATION", id: "MC-LEO-001", status: "EARTH OBSERVATION PROFILE" },
+  lunar: { title: "LUNAR EXPLORATION", subtitle: "LUNAR ORBIT Â· DEEP SPACE OPERATIONS", id: "MC-LUNAR-002", status: "LUNAR ORBIT PROFILE" },
+  mars: { title: "MARS RECONNAISSANCE", subtitle: "MARS ORBIT Â· PLANETARY SCIENCE", id: "MC-MARS-003", status: "MARS ORBITER PROFILE" },
 };
 
 export default function SpaceScene() {
@@ -799,7 +819,7 @@ export default function SpaceScene() {
           SPACECRAFT STATUS
         </div>
         <div style={{ marginTop: 9, fontSize: 13, color: "#78e0b0" }}>
-          ● VISUAL MODEL ACTIVE
+          â— VISUAL MODEL ACTIVE
         </div>
         <div style={{ color: "#8da7c4", marginTop: 7, fontSize: 10 }}>
           {activeMission.status}
@@ -821,7 +841,7 @@ export default function SpaceScene() {
         }}
       >
         MISSION ID: {activeMission.id}
-        <span style={{ marginLeft: 16, color: "#64c4ff" }}>● {mission.toUpperCase()} ENVIRONMENT</span>
+        <span style={{ marginLeft: 16, color: "#64c4ff" }}>â— {mission.toUpperCase()} ENVIRONMENT</span>
       </div>
 
       {/* Bottom-right controls */}
@@ -835,13 +855,13 @@ export default function SpaceScene() {
           letterSpacing: 0.7,
         }}
       >
-        DRAG TO ROTATE · SCROLL TO ZOOM
+        DRAG TO ROTATE Â· SCROLL TO ZOOM
       </div>
 
       {/* Planet texture attribution */}
       {mission === "mars" && (
         <div style={{ position: "absolute", bottom: 22, left: "50%", transform: "translateX(-50%)", color: "rgba(160,180,202,.62)", fontSize: 9, letterSpacing: 0.4, whiteSpace: "nowrap", pointerEvents: "none" }}>
-          MARS MAP: SOLAR SYSTEM SCOPE · CC BY 4.0 · BASED ON NASA IMAGERY
+          MARS MAP: SOLAR SYSTEM SCOPE Â· CC BY 4.0 Â· BASED ON NASA IMAGERY
         </div>
       )}
 
@@ -862,3 +882,5 @@ export default function SpaceScene() {
     </div>
   );
 }
+
+
