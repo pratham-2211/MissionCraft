@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import {
   Stars,
@@ -648,6 +648,25 @@ function NasaMarsDataPanel() {
                     Tags: {item.keywords.slice(0, 4).join(" · ")}
                   </span>
                 )}
+                {item.description && (
+                  <span style={{
+                    display: "block",
+                    marginTop: 7,
+                    padding: "6px 7px",
+                    borderLeft: "2px solid #e0a17e",
+                    background: "rgba(224,161,126,0.07)",
+                    color: "#c0d0e2",
+                    fontSize: 8,
+                    lineHeight: 1.6
+                  }}>
+                    <strong style={{ color: "#f0a17b" }}>
+                      MISSION INTELLIGENCE
+                    </strong>
+                    <br />
+                    {item.description.slice(0, 260)}
+                    {item.description.length > 260 ? "..." : ""}
+                  </span>
+                )}
               </span>
             </a>
           ))}
@@ -661,7 +680,7 @@ function NasaMarsDataPanel() {
   );
 }
 
-function Scene({ mission }) {
+function Scene({ mission, missionStage }) {
   return (
     <>
       <color attach="background" args={["#020611"]} />
@@ -693,7 +712,7 @@ function Scene({ mission }) {
       )}
       {mission === "lunar" && <Moon focused />}
       {mission === "mars" && <Mars />}
-      <OrbitalSystem orbitColor={mission === "mars" ? "#e77b4d" : mission === "lunar" ? "#b7c6d8" : "#4b9bd6"} />
+      <OrbitalSystem orbitColor={mission === "mars" ? "#e77b4d" : mission === "lunar" ? "#b7c6d8" : "#4b9bd6"} missionStage={missionStage} />
 
       <Stars
         radius={100}
@@ -741,6 +760,7 @@ const MISSION_CONFIG = {
 
 export default function SpaceScene() {
   const [mission, setMission] = useState("earth");
+  const [missionStage, setMissionStage] = useState(1);
   const activeMission = MISSION_CONFIG[mission];
 
   return (
@@ -766,7 +786,7 @@ export default function SpaceScene() {
           toneMappingExposure: 1.12,
         }}
       >
-        <Scene mission={mission} />
+        <Scene mission={mission} missionStage={missionStage} />
       </Canvas>
 
       {mission === "mars" && <NasaMarsDataPanel />}
@@ -791,6 +811,89 @@ export default function SpaceScene() {
         ))}
       </div>
 
+      {/* Mission Control */}
+      <div style={{
+        position: "absolute",
+        top: 180,
+        right: 24,
+        width: 205,
+        padding: 12,
+        background: "linear-gradient(145deg, rgba(7,17,32,.94), rgba(8,20,36,.86))",
+        border: "1px solid rgba(100,196,255,.28)",
+        borderRadius: 9,
+        color: "#dcecff",
+        zIndex: 5,
+        pointerEvents: "auto",
+        backdropFilter: "blur(12px)",
+      }}>
+        <div style={{
+          color: "#64c4ff",
+          fontSize: 10,
+          fontWeight: 800,
+          letterSpacing: 2
+        }}>
+          MISSION CONTROL
+        </div>
+
+        <div style={{ marginTop: 6, fontSize: 9, color: "#91a8c1" }}>
+          FLIGHT SEQUENCE · {missionStage + 1}/6
+        </div>
+
+        <div style={{
+          height: 4,
+          background: "rgba(120,150,180,.18)",
+          borderRadius: 5,
+          marginTop: 9,
+          overflow: "hidden"
+        }}>
+          <div style={{
+            width: `${((missionStage + 1) / 6) * 100}%`,
+            height: "100%",
+            background: "#64c4ff",
+            transition: "width .3s ease"
+          }} />
+        </div>
+
+        {[
+          "Launch",
+          "Orbital Insertion",
+          "Transfer Trajectory",
+          "Planetary Approach",
+          "Landing Sequence",
+          "Rover Deployment"
+        ].map((label, index) => (
+          <button
+            key={label}
+            onClick={() => setMissionStage(index)}
+            style={{
+              display: "block",
+              width: "100%",
+              textAlign: "left",
+              marginTop: 7,
+              padding: "8px 9px",
+              borderRadius: 5,
+              cursor: "pointer",
+              border: missionStage === index
+                ? "1px solid rgba(100,196,255,.7)"
+                : "1px solid rgba(140,160,185,.13)",
+              background: missionStage === index
+                ? "rgba(41,116,170,.28)"
+                : "rgba(10,22,38,.5)",
+              color: missionStage === index ? "#e4f5ff" : "#91a8c1",
+              fontSize: 9,
+              fontWeight: 700,
+            }}
+          >
+            <span style={{ color: "#64c4ff", marginRight: 8 }}>
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            {label}
+            {index < missionStage && (
+              <span style={{ float: "right", color: "#78e0b0" }}>✓</span>
+            )}
+          </button>
+        ))}
+      </div>
       {/* Top-left mission identity */}
       <div style={{ ...hudPanel, top: 22, left: 24, color: "#e6f2ff" }}>
         <div style={{ fontSize: 10, letterSpacing: 3, color: "#64c4ff" }}>
