@@ -15,48 +15,38 @@ import {
 } from "../simulation/gameEngine.js";
 import { COMPONENT_CATALOG } from "../simulation/spacecraftConfig.js";
 import { MISSIONS, getMissionById } from "../simulation/missionController.js";
+import { getPerformanceRating } from "../simulation/scoring.js";
 
-const DEFAULT_HISTORY = [
-  {
-    id: "hist-01",
-    missionId: "earth-observation",
-    name: "Earth Observation // Sentinel-1",
-    destination: "Low Earth Orbit (700 km)",
-    date: "2026-11-10",
-    duration: "180 Days",
-    score: 500,
-    rating: "Excellent",
-    status: "completed",
-    launchMassKg: 910,
-    scienceYield: "1.4 TB telemetry",
-  },
-  {
-    id: "hist-02",
-    missionId: "lunar-survey",
-    name: "Lunar Survey // Artemis Pathfinder",
-    destination: "Lunar Polar Orbit (100 km)",
-    date: "2026-11-04",
-    duration: "8 Days",
-    score: 400,
-    rating: "Good",
-    status: "completed",
-    launchMassKg: 1420,
-    scienceYield: "Water-ice deposits mapped",
-  },
-  {
-    id: "hist-03",
-    missionId: "mars-exploration",
-    name: "Mars Exploration // Red Pioneer",
-    destination: "Mars Jezero Crater Relay",
-    date: "2026-10-22",
-    duration: "540 Days",
-    score: 500,
-    rating: "Excellent",
-    status: "completed",
-    launchMassKg: 1980,
-    scienceYield: "Deep atmospheric spectrometry",
-  },
-];
+const HISTORY_STORAGE_KEY = "missioncraft_flight_history_v2";
+
+function loadSavedHistory() {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return [];
+  }
+  try {
+    const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load flight history from storage:", err);
+  }
+  return [];
+}
+
+function persistHistory(list) {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(list));
+  } catch (err) {
+    console.error("Failed to persist flight history to storage:", err);
+  }
+}
 
 export function useMissionCraftGame() {
   // Current screen state
@@ -79,8 +69,8 @@ export function useMissionCraftGame() {
     return initialGame;
   });
 
-  // Saved flight history
-  const [historyList, setHistoryList] = useState(DEFAULT_HISTORY);
+  // Saved flight history - starts empty or loads genuine completed missions
+  const [historyList, setHistoryList] = useState(loadSavedHistory);
 
   // Notifications
   const [notification, setNotification] = useState("");
@@ -90,12 +80,12 @@ export function useMissionCraftGame() {
     return getMissionById(activeMissionId) || MISSIONS[0];
   }, [activeMissionId]);
 
-  // Derived real game resources from Member 2's gameEngine
+  // Derived real game resources from gameEngine
   const resources = useMemo(() => {
     return getGameResources(game);
   }, [game]);
 
-  // Derived launch readiness verification from Member 2's gameEngine
+  // Derived launch readiness verification from gameEngine
   const readiness = useMemo(() => {
     try {
       return checkLaunchReadiness(game, activeMissionId);
@@ -130,7 +120,9 @@ export function useMissionCraftGame() {
   const handleSelectMission = useCallback((missionId) => {
     setActiveMissionId(missionId);
     const mission = getMissionById(missionId);
-    setNotification(`MISSION SELECTED: ${mission ? mission.name.toUpperCase() : missionId}`);
+    setNotification(
+      `MISSION SELECTED: ${mission ? mission.name.toUpperCase() : missionId}`
+    );
   }, []);
 
   const handleInstallComponent = useCallback((componentId) => {
@@ -176,7 +168,9 @@ export function useMissionCraftGame() {
       setCurrentScreen("mission-control");
       return true;
     } else {
-      setNotification(`LAUNCH BLOCKED: ${launchResult.validation.errors.join(", ")}`);
+      setNotification(
+        `LAUNCH BLOCKED: ${launchResult.validation.errors.join(", ")}`
+      );
       return false;
     }
   }, [game, activeMissionId]);
@@ -199,39 +193,103 @@ export function useMissionCraftGame() {
       try {
         const next = moveToNextPhase(prevGame);
         if (next.missionState?.status === "completed") {
-          setNotification("ALL MISSION PHASES COMPLETED!");
+          setNotification("ALL MISSION PHASES COMPLETED! MISSION SUCCESSFUL.");
           setCurrentScreen("results");
+        } else if (next.missionState?.status === "failed") {
+          const reason =
+            next.lastSimulationResult?.reason || "Resource exhaustion";
+          setNotification(`SIMULATION FAILED: ${reason.toUpperCase()}`);
         } else {
-          const currentPhaseName = activeMission.phases[next.missionState?.currentPhaseIndex || 0];
-          setNotification(`ADVANCED TO PHASE: ${currentPhaseName ? currentPhaseName.toUpperCase() : "NEXT"}`);
+          const currentPhaseName =
+            activeMission.phases[next.missionState?.currentPhaseIndex || 0];
+          setNotification(
+            `ADVANCED TO PHASE: ${
+              currentPhaseName ? currentPhaseName.toUpperCase() : "NEXT"
+            }`
+          );
         }
         return next;
       } catch (err) {
         console.error(err);
+        setNotification(`PHASE ERROR: ${err.message}`);
         return prevGame;
       }
     });
   }, [activeMission]);
 
   const handleArchiveMission = useCallback(() => {
+    if (!game.launched && !game.missionState) {
+      setNotification("NO MISSION FLIGHT TO ARCHIVE YET.");
+      return;
+    }
+
     const res = getFinalMissionResult(game);
+    const currentScore = getGameScore(game);
+    const status = game.missionState?.status || "in_progress";
+    const totalScoreVal =
+      res?.totalScore ?? (currentScore?.totalScore ?? 0);
+
+    let ratingVal = "Needs Improvement";
+    if (res?.rating) {
+      ratingVal = res.rating;
+    } else {
+      try {
+        ratingVal = getPerformanceRating(totalScoreVal);
+      } catch {
+        ratingVal = "Needs Improvement";
+      }
+    }
+
+    const completedCount =
+      game.missionState?.completedObjectiveIds?.length || 0;
+    const totalObjs = activeMission.objectives?.length || 0;
+    const elapsedHours = game.simulationState?.elapsedHours ?? 0;
+    const fuelRemaining =
+      game.simulationState?.fuelRemainingKg ?? resources.fuelKg;
+
     const newEntry = {
-      id: `hist-${Date.now()}`,
+      id: `flight-${Date.now()}`,
       missionId: activeMissionId,
-      name: `${activeMission.name} // MC-${Math.floor(100 + Math.random() * 900)}`,
+      name: activeMission.name,
+      callsign: `MC-${activeMission.id.slice(0, 3).toUpperCase()}-${Date.now()
+        .toString()
+        .slice(-4)}`,
       destination: activeMission.name,
       date: new Date().toISOString().split("T")[0],
-      duration: "Completed Flight",
-      score: res ? res.totalScore : 500,
-      rating: res ? res.rating : "Excellent",
-      status: "completed",
-      launchMassKg: resources.totalMassKg + resources.fuelKg,
-      scienceYield: "All primary objectives achieved",
+      duration:
+        elapsedHours > 0 ? `${elapsedHours}h Simulated` : "Sub-orbital",
+      score: totalScoreVal,
+      rating: ratingVal,
+      status: status, // "completed", "failed", or "in_progress"
+      launchMassKg: resources.totalMassKg,
+      fuelRemainingKg: fuelRemaining,
+      completedObjectives: completedCount,
+      totalObjectives: totalObjs,
+      failureReason: game.lastSimulationResult?.reason || null,
     };
-    setHistoryList((prev) => [newEntry, ...prev]);
-    setNotification("MISSION RESULT ARCHIVED TO HISTORY");
+
+    setHistoryList((prev) => {
+      const updated = [newEntry, ...prev];
+      persistHistory(updated);
+      return updated;
+    });
+
+    const statusMsg =
+      status === "completed"
+        ? "COMPLETED MISSION LOG ARCHIVED"
+        : status === "failed"
+        ? "FAILED MISSION LOG ARCHIVED"
+        : "IN-PROGRESS FLIGHT RECORD ARCHIVED";
+
+    setNotification(statusMsg);
     setCurrentScreen("history");
   }, [game, activeMissionId, activeMission, resources]);
+
+  const handleClearHistory = useCallback(() => {
+    setHistoryList([]);
+    persistHistory([]);
+    setNotification("FLIGHT ARCHIVE CLEARED.");
+  }, []);
 
   const handleResetMission = useCallback(() => {
     let fresh = createGame(6000000);
@@ -269,6 +327,7 @@ export function useMissionCraftGame() {
     completeObjective: handleCompleteObjective,
     nextPhase: handleNextPhase,
     archiveMission: handleArchiveMission,
+    clearHistory: handleClearHistory,
     resetMission: handleResetMission,
   };
 }

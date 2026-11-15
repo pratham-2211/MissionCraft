@@ -38,6 +38,7 @@ export default function MissionCraftApp() {
     completeObjective,
     nextPhase,
     archiveMission,
+    clearHistory,
     resetMission,
   } = useMissionCraftGame();
 
@@ -138,6 +139,7 @@ export default function MissionCraftApp() {
             onNavigate={setCurrentScreen}
             historyList={historyList}
             onSelectMission={selectMission}
+            onClearHistory={clearHistory}
           />
         );
       default:
