@@ -193,11 +193,33 @@ export function moveToNextPhase(game) {
     game.missionState
   );
 
+  const updatedSimulationState =
+    updatedMissionState.status === "completed"
+      ? { ...result.simulationState, status: "completed" }
+      : updatedMissionState.status === "failed"
+      ? { ...result.simulationState, status: "failed" }
+      : result.simulationState;
+
+  const updatedResult =
+    updatedMissionState.status === "completed"
+      ? {
+          ...result,
+          simulationState: updatedSimulationState
+        }
+      : updatedMissionState.status === "failed"
+      ? {
+          ...result,
+          success: false,
+          reason: result.reason || "Mission objectives not completed",
+          simulationState: updatedSimulationState
+        }
+      : result;
+
   return {
     ...game,
-    simulationState: result.simulationState,
+    simulationState: updatedSimulationState,
     missionState: updatedMissionState,
-    lastSimulationResult: result
+    lastSimulationResult: updatedResult
   };
 }
 
@@ -240,4 +262,15 @@ export function getGameSimulation(game) {
 // Get latest phase result
 export function getLastSimulationResult(game) {
   return game.lastSimulationResult;
+}
+
+// Reset mission state while preserving spacecraft design and budget
+export function resetMission(game) {
+  return {
+    ...game,
+    missionState: null,
+    simulationState: null,
+    lastSimulationResult: null,
+    launched: false
+  };
 }

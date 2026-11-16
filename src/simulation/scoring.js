@@ -25,11 +25,14 @@ export function calculateMissionScore(missionState) {
     throw new Error("Mission state is required.");
   }
 
-  const completedObjectives =
+  const rawCompleted =
     missionState.completedObjectiveIds || [];
 
+  // Guarantee duplicate objective IDs do not inflate score
+  const uniqueObjectives = [...new Set(rawCompleted)];
+
   const objectiveScore =
-    completedObjectives.length * POINTS_PER_OBJECTIVE;
+    uniqueObjectives.length * POINTS_PER_OBJECTIVE;
 
   const completionBonus =
     missionState.status === "completed"
@@ -42,7 +45,7 @@ export function calculateMissionScore(missionState) {
     objectiveScore,
     completionBonus,
     totalScore,
-    completedObjectives: completedObjectives.length,
+    completedObjectives: uniqueObjectives.length,
     status: missionState.status
   };
 }

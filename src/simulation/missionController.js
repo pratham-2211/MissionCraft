@@ -197,11 +197,13 @@ export function createMissionState(missionId) {
  * @returns {Object} Updated mission state.
  */
 export function completeObjective(state, objectiveId) {
-  const mission = getMissionById(state.missionId);
+  const mission = getMissionById(state?.missionId);
 
-  if (!mission || state.status === "completed") {
+  if (!mission || state.status === "completed" || state.status === "failed") {
     return state;
   }
+
+  const completedObjectiveIds = state.completedObjectiveIds || [];
 
   const objectiveExists = mission.objectives.some(
     (objective) => objective.id === objectiveId
@@ -211,14 +213,14 @@ export function completeObjective(state, objectiveId) {
     return state;
   }
 
-  if (state.completedObjectiveIds.includes(objectiveId)) {
+  if (completedObjectiveIds.includes(objectiveId)) {
     return state;
   }
 
   return {
     ...state,
     completedObjectiveIds: [
-      ...state.completedObjectiveIds,
+      ...completedObjectiveIds,
       objectiveId,
     ],
   };
@@ -231,30 +233,28 @@ export function completeObjective(state, objectiveId) {
  * @returns {Object} Updated mission state.
  */
 export function advanceMissionPhase(state) {
-  const mission = getMissionById(state.missionId);
+  const mission = getMissionById(state?.missionId);
 
-  if (!mission || state.status === "completed") {
+  if (!mission || state.status === "completed" || state.status === "failed") {
     return state;
   }
 
   const lastPhaseIndex = mission.phases.length - 1;
 
+  const completedObjectiveIds = state.completedObjectiveIds || [];
+
   // Check whether all objectives are completed
   const allObjectivesCompleted = mission.objectives.every(
     (objective) =>
-      state.completedObjectiveIds.includes(objective.id)
+      completedObjectiveIds.includes(objective.id)
   );
 
-  // Complete mission only after all objectives are done
+  // When at or past the terminal phase, resolve mission status explicitly
   if (state.currentPhaseIndex >= lastPhaseIndex) {
-    if (allObjectivesCompleted) {
-      return {
-        ...state,
-        status: "completed",
-      };
-    }
-
-    return state;
+    return {
+      ...state,
+      status: allObjectivesCompleted ? "completed" : "failed",
+    };
   }
 
   return {
@@ -270,13 +270,14 @@ export function advanceMissionPhase(state) {
  * @returns {Object|null} Mission progress details.
  */
 export function getMissionProgress(state) {
-  const mission = getMissionById(state.missionId);
+  const mission = getMissionById(state?.missionId);
 
   if (!mission) {
     return null;
   }
 
-  const completedCount = state.completedObjectiveIds.length;
+  const completedCount = (state.completedObjectiveIds || []).length;
+  const totalObjectives = mission.objectives?.length || 1;
 
   return {
     missionName: mission.name,
@@ -285,7 +286,7 @@ export function getMissionProgress(state) {
     completedObjectives: completedCount,
     totalObjectives: mission.objectives.length,
     progressPercentage: Math.round(
-      (completedCount / mission.objectives.length) * 100
+      (completedCount / totalObjectives) * 100
     ),
     status: state.status,
   };

@@ -39,6 +39,11 @@ export function validateLaunch(
   const requiredComponents = mission.requiredComponentIds || [];
 
   requiredComponents.forEach((componentId) => {
+    // Avoid duplicate error message for rocket which is checked above
+    if (componentId === "rocket") {
+      return;
+    }
+
     if (!selectedIds.includes(componentId)) {
       errors.push(`Required component missing: ${componentId}`);
     }
